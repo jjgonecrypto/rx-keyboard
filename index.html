@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rx Keyboard</title>
+  <script src="./node_modules/rx/dist/rx.lite.js"></script>
+  <script src="./node_modules/soundfont-player/dist/soundfont-loader.js"></script>
+  <script src="./build/teoria.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var ctx = new AudioContext();
+
+        var teoria = require('teoria');
+        // window.Rx
+        // window.soundfont
+
+        function createLoopScale(fromNote, name) {
+            var notesUp = teoria.note(fromNote).scale(name).notes();
+            return notesUp.concat([teoria.note(fromNote).interval('P8')]).concat(notesUp.reverse());
+        }
+
+        // load instrument
+        soundfont(ctx, 'acoustic_grand_piano').then(function(instrument) {
+            var notes = createLoopScale('c3', 'harmonicminor');
+
+            stream = Rx.Observable.from(notes, function (value) { return Rx.Observable.return(value).delay(300); }).concatAll();
+
+            stream.subscribe(function onNext(note) {
+                instrument.play(note.toString(), ctx.currentTime, 250);
+            }, function onError() {
+                console.log('error');
+            }, function onComplete() {
+                console.log('complete');
+            });
+
+        });
+    });
+  </script>
+  <style>
+
+  </style>
+</head>
+<body>
+
+</body>
+</html>
