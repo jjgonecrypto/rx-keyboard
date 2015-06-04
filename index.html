@@ -22,11 +22,18 @@
 
         // load instrument
         soundfont(ctx, 'acoustic_grand_piano').then(function(instrument) {
-            var notes = createLoopScale('c3', 'harmonicminor');
+            var notes = createLoopScale('c3', 'minor');
+            var upThird = createLoopScale('eb4', 'major');
 
-            stream = Rx.Observable.from(notes, function (value) { return Rx.Observable.return(value).delay(300); }).concatAll();
+            // step 1 : simple spread over 300ms intervals
+            // var stream = Rx.Observable.interval(300).map(function (i) { return notes[i]; }).take(notes.length);
 
-            stream.subscribe(function onNext(note) {
+
+            var streamA = Rx.Observable.interval(300).map(function (i) { return notes[i]; });
+            var streamB = Rx.Observable.interval(300).map(function (i) { return upThird[i]; }).delay(100);
+
+            streamA.merge(streamB).take(notes.length * 2).subscribe(function onNext(note) {
+                console.log(note.toString());
                 instrument.play(note.toString(), ctx.currentTime, 250);
             }, function onError() {
                 console.log('error');
