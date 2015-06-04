@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Rx Keyboard</title>
   <script src="./node_modules/rx/dist/rx.lite.js"></script>
-  <script src="./node_modules/soundfont-player/dist/soundfont-loader.js"></script>
+  <script src="./node_modules/soundfont-player/dist/soundfont-player.js"></script>
   <script src="./build/teoria.js"></script>
 
   <script>
@@ -13,7 +13,7 @@
 
         var teoria = require('teoria');
         // window.Rx
-        // window.soundfont
+        var soundfont = new Soundfont(ctx);
 
         function createLoopScale(fromNote, name) {
             var notesUp = teoria.note(fromNote).scale(name).notes();
@@ -21,13 +21,13 @@
         }
 
         // load instrument
-        soundfont(ctx, 'acoustic_grand_piano').then(function(instrument) {
+        var instrument = soundfont.instrument('acoustic_grand_piano');
+        soundfont.onready(function() {
             var notes = createLoopScale('c3', 'minor');
             var upThird = createLoopScale('eb4', 'major');
 
             // step 1 : simple spread over 300ms intervals
             // var stream = Rx.Observable.interval(300).map(function (i) { return notes[i]; }).take(notes.length);
-
 
             var streamA = Rx.Observable.interval(300).map(function (i) { return notes[i]; });
             var streamB = Rx.Observable.interval(300).map(function (i) { return upThird[i]; }).delay(100);
