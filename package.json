@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/justinjmoses/rx-keyboard",
   "dependencies": {
+    "express": "^4.13.1",
     "highlight.js": "^8.6.0",
     "rx": "^2.5.3",
     "scrollmagic": "^2.0.5",
