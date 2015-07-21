@@ -1,56 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Rx Keyboard</title>
+    <meta charset="UTF-8">
+    <title>Rx Keyboard</title>
+
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+
+    <link rel="stylesheet" href="./node_modules/highlight.js/styles/monokai_sublime.css">
+
+    <style type="text/css">
+        html,body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            background-color: #EFEFEF;
+            font-family: 'Helvetica Neue', Helvetica, 'Segoe UI', Arial, freesans, sans-serif;
+            font-size: 14px;
+        }
+        body > header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 250px;
+            text-align: center;
+            color: #000;
+            background-image: url("http://images.clipartpanda.com/diagram-clipart-2-octave-blank-piano-keyboard-diagram.svg");
+            background-position-y: -125px;
+            background-position-x: -4px;
+            margin: 0;
+        }
+        body > h1 > span {
+            color: #CCC;
+        }
+        article {
+            background-color: #EFEFEF;
+            height: 100%;
+            margin-bottom: 500px;
+        }
+        article > * {
+            position: relative;
+            top: 50%;
+            bottom: 50%;
+        }
+        article > h1, article > p {
+            margin-left: 68px;
+        }
+  </style>
+
+  <script src="./node_modules/scrollmagic/scrollmagic/uncompressed/ScrollMagic.js"></script>
+
   <script src="./node_modules/rx/dist/rx.lite.js"></script>
   <script src="./node_modules/soundfont-player/dist/soundfont-player.js"></script>
-  <script src="./build/teoria.js"></script>
+
+  <script src="./build/third.js"></script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        'use strict';
+    'use strict';
+
+    var teoria = require('teoria');
+
+    function scale(from, type) {
+        var notes = teoria.note(from).scale(type).notes();
+        return notes.concat(notes[0].interval('P8')).concat(notes.reverse());
+    }
+
+    var slides = [
+        {
+            title: 'Simple Scale: Delaying an Observable over Time',
+            block: function simpleScale() {
+                // create C Major scale
+                // ['c3', 'd3', 'e3', 'f3', 'g3', 'a3', 'b3', 'c4', 'b3', 'a3', 'g3', 'f3', 'e3', 'd3', 'c3'];
+                var notes = scale('c3', 'major');
+
+                // Every 300ms emit a number ascending from 0
+                return Rx.Observable.interval(150)
+                    // mapping this number to a note in the array,
+                    .map(function (i) { return notes[i]; })
+                    // and only take as many events as there are notes
+                    .take(notes.length);
+            }
+        },
+        {
+            title: 'Combined Scale: Merging two Observables',
+            block: function mergingScales() {
+                // create C Major scale
+                var cMajor = scale('c3', 'major');
+                // create F Lydian scale (4th mode of C Major)
+                var fLydian = scale('f3', 'lydian');
+
+                var streamA = Rx.Observable.interval(300).map(function (i) { return cMajor[i]; });
+                var streamB = Rx.Observable.interval(300).map(function (i) { return fLydian[i]; }).delay(100);
+
+                return streamA.merge(streamB).take(cMajor.length + fLydian.length);
+            }
+        },
+        {
+            title: 'Chords: Projecting one Event into a Tuple',
+            block: function chords() {
+                var notes = scale('c3', 'major');
+
+                return Rx.Observable.interval(300)
+                    .map(function (i) {
+                        return notes[i];
+                    })
+                    .selectMany(function (x) {
+                        // return an array of the note, the note a major third above it, and the note a perfect fifth above that
+                        return [x, teoria.note(x.interval('M3').toString()), teoria.note(x.interval('P5').toString())];
+                    })
+                    .take(notes.length * 3);
+            }
+        }
+    ];
+
+
+
+    function createSlideElement(slide) {
+        var article = document.createElement('article');
+        article.innerHTML = '<h1>' + slide.title + '</h1>';
+        if (slide.text) article.innerHTML += '<p>' + slide.text + '</p>';
+        article.innerHTML += '<pre><code class="javascript">        ' + slide.block + '</code></pre>';
+        document.querySelector('body').appendChild(article);
+
+        return {
+            el: article,
+            slide: slide
+        };
+    }
+
+    function setupScrollScenes() {
 
         var ctx = new AudioContext();
 
-        var teoria = require('teoria');
-        // window.Rx
         var soundfont = new Soundfont(ctx);
-
-        function createLoopScale(fromNote, name) {
-            var notesUp = teoria.note(fromNote).scale(name).notes();
-            return notesUp.concat([teoria.note(fromNote).interval('P8')]).concat(notesUp.reverse());
-        }
 
         // load instrument
         var instrument = soundfont.instrument('acoustic_grand_piano');
-        soundfont.onready(function() {
-            var notes = createLoopScale('c3', 'major');
 
-            // step 1 : simple spread over 300ms intervals
-            // var score = Rx.Observable.interval(300).map(function (i) { return notes[i]; }).take(notes.length);
-
-            // step 2: merge two streams
-            // var mode = createLoopScale('f3', 'lydian');
-            // var streamA = Rx.Observable.interval(300).map(function (i) { return notes[i]; });
-            // var streamB = Rx.Observable.interval(300).map(function (i) { return mode[i]; }).delay(100);
-            // var score = streamA.merge(streamB).take(notes.length * 2);
-
-            // step 3: create a stream (chords) from another
-            var score = Rx.Observable.interval(300).map(function (i) { return notes[i]; }).selectMany(function (x, i) {
-                return [x, teoria.note(x.interval('M3').toString()), teoria.note(x.interval('P5').toString())];
-            }).take(notes.length * 3);
-
-            score.subscribe(function onNext(note) {
-                console.log(note.toString());
-                instrument.play(note.toString(), ctx.currentTime, 250);
-            }, function onError() {
-                console.log('error');
-            }, function onComplete() {
-                console.log('complete');
-            });
-
+         // init scene controller
+        var controller = new window.ScrollMagic.Controller({
+            globalSceneOptions: {
+                triggerHook: 'onLeave'
+            }
         });
+
+        new window.ScrollMagic.Scene({
+                triggerElement: document.querySelector('body > article')
+            })
+            .setPin(document.querySelector('body > article'))
+            .addTo(controller);
+
+        slides.map(createSlideElement).forEach(function (target) {
+            new window.ScrollMagic.Scene({
+                triggerElement: target.el
+            })
+            .setPin(target.el)
+            .addTo(controller)
+            .on('enter', function () {
+                if (!target.slide.block) return;
+
+                var score = target.slide.block();
+
+                soundfont.onready(function() {
+
+                    score.subscribe(function onNext(note) {
+                        console.log(note.toString());
+                        instrument.play(note.toString(), ctx.currentTime, 250);
+                    }, function onError() {
+                        console.log('error');
+                    }, function onComplete() {
+                        console.log('complete');
+                    });
+                });
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // enable syntax highlighting
+        require('hljs').initHighlightingOnLoad();
+
+        // setup and manage scroll scenes
+        setupScrollScenes();
+
     });
   </script>
   <style>
@@ -59,5 +193,11 @@
 </head>
 <body>
 
+    <article>
+        <h1>Rx Keyboard</h1>
+        <p>Welcome to an audio guide to understanding Rx streams and the operators therein.</p>
+    </article>
+
+    <header></header>
 </body>
 </html>

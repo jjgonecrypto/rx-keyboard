@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepublish": "mkdir -p build && browserify -r ./node_modules/teoria/index.js:teoria -o ./build/teoria.js"
+    "prepublish": "mkdir -p build && browserify -r ./node_modules/teoria/index.js:teoria -r ./node_modules/highlight.js/lib/index.js:hljs -o ./build/third.js"
   },
   "repository": {
     "type": "git",
@@ -24,7 +24,9 @@
   },
   "homepage": "https://github.com/justinjmoses/rx-keyboard",
   "dependencies": {
+    "highlight.js": "^8.6.0",
     "rx": "^2.5.3",
+    "scrollmagic": "^2.0.5",
     "soundfont-player": "^0.4.0",
     "teoria": "^1.9.0"
   },
