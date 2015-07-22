@@ -25,7 +25,7 @@
             height: 250px;
             text-align: center;
             color: #000;
-            background-image: url("http://images.clipartpanda.com/diagram-clipart-2-octave-blank-piano-keyboard-diagram.svg");
+            background-image: url("piano.svg");
             background-position-y: -125px;
             background-position-x: -4px;
             margin: 0;
@@ -46,11 +46,15 @@
         article > h1, article > p {
             margin-left: 68px;
         }
+        article > p > input {
+            background-color: transparent;
+            border: 0;
+        }
   </style>
 
   <script src="./node_modules/scrollmagic/scrollmagic/uncompressed/ScrollMagic.js"></script>
 
-  <script src="./node_modules/rx/dist/rx.lite.js"></script>
+  <script src="./node_modules/rx/dist/rx.all.js"></script>
   <script src="./node_modules/soundfont-player/dist/soundfont-player.js"></script>
 
   <script src="./build/third.js"></script>
@@ -62,6 +66,7 @@
 
     function scale(from, type) {
         var notes = teoria.note(from).scale(type).notes();
+
         return notes.concat(notes[0].interval('P8')).concat(notes.reverse());
     }
 
@@ -72,6 +77,22 @@
                 // create C Major scale
                 // ['c3', 'd3', 'e3', 'f3', 'g3', 'a3', 'b3', 'c4', 'b3', 'a3', 'g3', 'f3', 'e3', 'd3', 'c3'];
                 var notes = scale('c3', 'major');
+
+                // Every 300ms emit a number ascending from 0
+                return Rx.Observable.interval(150)
+                    // mapping this number to a note in the array,
+                    .map(function (i) { return notes[i]; })
+                    // and only take as many events as there are notes
+                    .take(notes.length);
+            }
+        },
+        {
+            title: 'Simple Scale based on your input',
+            text: 'Try entering a key to base the scale on, eg. a# or b5 or eb or c2',
+            input: true,
+            block: function simpleScale(note) {
+                // create Major scale
+                var notes = scale(note, 'major');
 
                 // Every 300ms emit a number ascending from 0
                 return Rx.Observable.interval(150)
@@ -119,6 +140,7 @@
         var article = document.createElement('article');
         article.innerHTML = '<h1>' + slide.title + '</h1>';
         if (slide.text) article.innerHTML += '<p>' + slide.text + '</p>';
+        if (slide.input) article.innerHTML += '<p><input /></p>';
         article.innerHTML += '<pre><code class="javascript">        ' + slide.block + '</code></pre>';
         document.querySelector('body').appendChild(article);
 
@@ -137,6 +159,25 @@
         // load instrument
         var instrument = soundfont.instrument('acoustic_grand_piano');
 
+        function subscribeAndPlay(score) {
+            soundfont.onready(function() {
+                score.map(function (note) {
+                    // check for double flat or double sharp
+                    if (note.toString().match(/x/)) return note.interval('d2');
+                    else if (note.toString().match(/[a-g]bb/i)) return note.interval('d-2');
+                    return note;
+                }).subscribe(function onNext(note) {
+                    console.log(note.toString());
+
+                    instrument.play(note.toString(), ctx.currentTime, 250);
+                }, function onError() {
+                    console.log('error');
+                }, function onComplete() {
+                    console.log('complete');
+                });
+            });
+        }
+
          // init scene controller
         var controller = new window.ScrollMagic.Controller({
             globalSceneOptions: {
@@ -150,28 +191,43 @@
             .setPin(document.querySelector('body > article'))
             .addTo(controller);
 
+        // listen for keyboard input
+        Rx.Observable.fromEvent(document, 'keypress').map(function (evt) {
+            return String.fromCharCode(evt.charCode);
+        }).filter(function (char) {
+            return char.match(/[abcdefg1-8#]/);
+        }).bufferWithCount(2).map(function (input) {
+            return input.join('');
+        }).filter(function (note) {
+            try {
+                teoria.note(note);
+            } catch (err) {
+                return false;
+            }
+            return true;
+        }).subscribe(function onNext(note) {
+            if (curTarget.slide.block.length) subscribeAndPlay(curTarget.slide.block(note));
+        });
+
+        var curTarget;
+
         slides.map(createSlideElement).forEach(function (target) {
             new window.ScrollMagic.Scene({
                 triggerElement: target.el
             })
             .setPin(target.el)
             .addTo(controller)
-            .on('enter', function () {
-                if (!target.slide.block) return;
-
-                var score = target.slide.block();
-
-                soundfont.onready(function() {
-
-                    score.subscribe(function onNext(note) {
-                        console.log(note.toString());
-                        instrument.play(note.toString(), ctx.currentTime, 250);
-                    }, function onError() {
-                        console.log('error');
-                    }, function onComplete() {
-                        console.log('complete');
-                    });
-                });
+            .on('start', function () {
+                console.log('progress');
+                curTarget = target;
+            })
+           .on('enter', function () {
+                // skip unless a block function which takes no inputs
+                if (!target.slide.block || target.slide.block.length > 0) return;
+                if (target.el.querySelector('input')) {
+                    target.el.querySelector('input').focus();
+                }
+                subscribeAndPlay(target.slide.block());
             });
         });
     }
@@ -194,7 +250,7 @@
 
     <article>
         <h1>Rx Keyboard</h1>
-        <p>Welcome to an audio guide to understanding Rx streams and the operators therein.</p>
+        <p>Welcome to an audio guide to understanding Rx streams and the operators therein. Scroll &#8675; to begin.</p>
     </article>
 
     <header></header>
