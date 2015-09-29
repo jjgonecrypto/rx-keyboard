@@ -166,6 +166,7 @@
                     if (note.toString().match(/x/)) return note.interval('d2');
                     else if (note.toString().match(/[a-g]bb/i)) return note.interval('d-2');
                     return note;
+                    return note;
                 }).subscribe(function onNext(note) {
                     console.log(note.toString());
 
@@ -218,15 +219,15 @@
             .setPin(target.el)
             .addTo(controller)
             .on('start', function () {
-                console.log('progress');
                 curTarget = target;
             })
            .on('enter', function () {
-                // skip unless a block function which takes no inputs
-                if (!target.slide.block || target.slide.block.length > 0) return;
                 if (target.el.querySelector('input')) {
                     target.el.querySelector('input').focus();
                 }
+                // skip unless a block function which takes no inputs
+                if (!target.slide.block || target.slide.block.length > 0) return;
+
                 subscribeAndPlay(target.slide.block());
             });
         });
